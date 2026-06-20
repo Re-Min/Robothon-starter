@@ -1,0 +1,1226 @@
+"""
+run_ball_catch.py - 接球任务主运行脚本
+
+这个脚本实现完整的接球任务：
+1. 手部灵活性展示
+2. 手部定位到接球位置
+3. 球发射
+4. 手部主动追踪
+5. 抓取闭合
+6. 保持稳定
+7. 释放
+
+总时长目标：40-60秒
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import shutil
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Iterable
+
+import numpy as np
+
+try:
+    import imageio.v3 as iio
+    import mujoco
+except ImportError as exc:
+    raise SystemExit(
+        "Missing dependency. Install from the repository root with:\n"
+        "  python -m pip install -r requirements.txt\n\n"
+        f"Original error: {exc}"
+    ) from exc
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    Image = None
+    ImageDraw = None
+    ImageFont = None
+
+from ball_tracker import (
+    BallTracker,
+    TRACKING_CONFIGS,
+    GRASP_CONFIG,
+    FINGER_JOINTS,
+    interpolate_pose,
+    merge_hand_pose,
+    get_joint_limits,
+    clamp_to_range,
+)
+
+# 项目路径
+PROJECT_DIR = Path(__file__).resolve().parent
+DEFAULT_SCENE = PROJECT_DIR / "scene_ball_catch.xml"
+DEFAULT_OUTPUT_DIR = PROJECT_DIR / "outputs_ball_catch"
+
+# 关节列表
+SLIDE_AND_WRIST_JOINTS = (
+    "hand_x",
+    "hand_y",
+    "hand_z",
+    "wrist_yaw",
+    "wrist_pitch",
+    "wrist_roll",
+)
+JOINT_NAMES = SLIDE_AND_WRIST_JOINTS + FINGER_JOINTS
+ACTUATOR_BY_JOINT = {joint_name: f"act_{joint_name}" for joint_name in JOINT_NAMES}
+
+# 触觉传感器
+TOUCH_SENSOR_BY_FINGER = {
+    "thumb": "touch_thumb_tip",
+    "index": "touch_index_tip",
+    "middle": "touch_middle_tip",
+    "ring": "touch_ring_tip",
+    "little": "touch_little_tip",
+}
+ALL_FINGERS = ("thumb", "index", "middle", "ring", "little")
+
+# 默认难度
+DEFAULT_DIFFICULTY = "medium"
+DEFAULT_SEED = 42
+
+
+@dataclass(frozen=True)
+class Phase:
+    """Phase定义"""
+    name: str
+    duration_s: float
+    hand_x: float
+    hand_y: float
+    hand_z: float
+    wrist_yaw: float = 0.0
+    wrist_pitch: float = 0.0
+    wrist_roll: float = 0.0
+    finger_pose: str = "open"  # open, close, hold
+    ball_launch: bool = False
+    tracking_enabled: bool = False
+    catch_enabled: bool = False
+    description: str = ""
+
+
+def get_default_phases() -> list[Phase]:
+    """获取默认的Phase序列"""
+    return [
+        # Phase 1: 手复位
+        Phase(
+            name="HAND_RESET",
+            duration_s=1.0,
+            hand_x=0.0,
+            hand_y=-0.13,
+            hand_z=0.025,
+            wrist_yaw=0.0,
+            wrist_pitch=0.0,
+            wrist_roll=0.0,
+            finger_pose="open",
+            description="手部回到初始位置",
+        ),
+        # Phase 2: 展示灵活性 - 1: 拇指对掌
+        Phase(
+            name="HAND_DISPLAY_1",
+            duration_s=1.5,
+            hand_x=0.0,
+            hand_y=-0.05,
+            hand_z=0.15,
+            wrist_yaw=0.0,
+            wrist_pitch=0.12,
+            wrist_roll=0.0,
+            finger_pose="display_1",
+            description="展示手部灵活性 - 拇指对掌",
+        ),
+        # Phase 3: 展示灵活性 - 2: 握拳
+        Phase(
+            name="HAND_DISPLAY_2",
+            duration_s=1.5,
+            hand_x=0.0,
+            hand_y=-0.05,
+            hand_z=0.15,
+            wrist_yaw=0.0,
+            wrist_pitch=0.12,
+            wrist_roll=0.0,
+            finger_pose="display_2",
+            description="展示手部灵活性 - 握拳",
+        ),
+        # Phase 3.5: 展示灵活性 - 3: OK手势
+        Phase(
+            name="HAND_DISPLAY_3",
+            duration_s=1.0,
+            hand_x=0.0,
+            hand_y=-0.05,
+            hand_z=0.15,
+            wrist_yaw=0.0,
+            wrist_pitch=0.12,
+            wrist_roll=0.0,
+            finger_pose="display_ok",
+            description="展示手部灵活性 - OK手势",
+        ),
+        # Phase 3.6: 展示灵活性 - 4: 捏取手势
+        Phase(
+            name="HAND_DISPLAY_4",
+            duration_s=1.0,
+            hand_x=0.0,
+            hand_y=-0.05,
+            hand_z=0.15,
+            wrist_yaw=0.0,
+            wrist_pitch=0.12,
+            wrist_roll=0.0,
+            finger_pose="display_pinch",
+            description="展示手部灵活性 - 捏取",
+        ),
+        # Phase 4: 移动到接球位置 (直接在球的上方，手指尖接近桌面高度)
+        Phase(
+            name="CATCH_POSITION",
+            duration_s=1.5,
+            hand_x=-0.34,  # 直接在球的上方
+            hand_y=-0.06,
+            hand_z=-0.065,  # 降低手的位置，让手指尖更接近桌面
+            wrist_yaw=0.0,
+            wrist_pitch=0.15,
+            wrist_roll=0.0,
+            finger_pose="open",
+            description="移动到接球准备位置 - 球上方",
+        ),
+        # Phase 5: 张开手等待发射（手移动到球轨迹上，手在球下方）
+        Phase(
+            name="BALL_AWAIT",
+            duration_s=2.0,  # 更长时间准备
+            hand_x=-0.05,  # 球轨迹路径
+            hand_y=-0.06,
+            hand_z=0.25,  # 手在球下方，手指向上包
+            wrist_yaw=0.0,
+            wrist_pitch=0.0,  # 手指向上
+            wrist_roll=0.0,
+            finger_pose="open_wait",
+            description="张开手等待球发射",
+        ),
+        # Phase 6: 发射球 + 追踪
+        Phase(
+            name="BALL_LAUNCH",
+            duration_s=10.0,  # 10秒追踪
+            hand_x=-0.05,  # 球轨迹路径
+            hand_y=-0.06,
+            hand_z=0.25,  # 手在球下方
+            wrist_yaw=0.0,
+            wrist_pitch=0.15,
+            wrist_roll=0.0,
+            finger_pose="open_wait",
+            ball_launch=True,
+            tracking_enabled=True,
+            catch_enabled=True,
+            description="发射球 + 手部追踪",
+        ),
+        # Phase 7: 抓取闭合
+        Phase(
+            name="HAND_CLOSE",
+            duration_s=2.0,  # 抓取时间
+            hand_x=-0.05,
+            hand_y=-0.06,
+            hand_z=0.25,  # 手在球下方
+            wrist_yaw=0.0,
+            wrist_pitch=0.15,
+            wrist_roll=0.0,
+            finger_pose="close",
+            tracking_enabled=True,
+            catch_enabled=True,
+            description="手指闭合抓取",
+        ),
+        # Phase 8: 保持稳定
+        Phase(
+            name="CATCH_HOLD",
+            duration_s=3.0,
+            hand_x=-0.05,
+            hand_y=-0.06,
+            hand_z=0.25,
+            wrist_yaw=0.0,
+            wrist_pitch=0.0,
+            wrist_roll=0.0,
+            finger_pose="hold",
+            catch_enabled=True,
+            description="保持稳定",
+        ),
+        # Phase 9: 释放
+        Phase(
+            name="CATCH_RELEASE",
+            duration_s=1.0,
+            hand_x=-0.05,
+            hand_y=-0.06,
+            hand_z=0.25,
+            wrist_yaw=0.0,
+            wrist_pitch=0.0,
+            wrist_roll=0.0,
+            finger_pose="open",
+            description="释放球",
+        ),
+        # Phase 10: 最终报告
+        Phase(
+            name="FINAL_REPORT",
+            duration_s=1.0,
+            hand_x=0.0,
+            hand_y=-0.13,
+            hand_z=0.025,
+            wrist_yaw=0.0,
+            wrist_pitch=0.0,
+            wrist_roll=0.0,
+            finger_pose="open",
+            description="最终报告",
+        ),
+    ]
+
+
+def get_finger_pose(pose_name: str) -> dict[str, float]:
+    """获取手指姿态"""
+    if pose_name == "open":
+        return {
+            "thumb_cmc_opposition": 0.18,
+            "thumb_cmc_abduction": 0.22,
+            "thumb_mcp_flexion": 0.08,
+            "thumb_ip_flexion": 0.04,
+            "index_mcp_abduction": -0.08,
+            "index_mcp_flexion": 0.04,
+            "index_pip_flexion": 0.03,
+            "index_dip_flexion": 0.02,
+            "middle_mcp_abduction": 0.00,
+            "middle_mcp_flexion": 0.04,
+            "middle_pip_flexion": 0.03,
+            "middle_dip_flexion": 0.02,
+            "ring_mcp_abduction": 0.05,
+            "ring_mcp_flexion": 0.04,
+            "ring_pip_flexion": 0.03,
+            "ring_dip_flexion": 0.02,
+            "little_mcp_abduction": 0.11,
+            "little_mcp_flexion": 0.04,
+            "little_pip_flexion": 0.03,
+            "little_dip_flexion": 0.02,
+        }
+    elif pose_name == "open_wait":
+        return GRASP_CONFIG["open_wait"]
+    elif pose_name == "close":
+        return GRASP_CONFIG["close_grasp"]
+    elif pose_name == "hold":
+        return GRASP_CONFIG["hold_stable"]
+    elif pose_name == "display_1":
+        # 拇指对掌
+        return {
+            "thumb_cmc_opposition": 0.80,
+            "thumb_cmc_abduction": 0.50,
+            "thumb_mcp_flexion": 0.50,
+            "thumb_ip_flexion": 0.30,
+            "index_mcp_abduction": -0.08,
+            "index_mcp_flexion": 0.04,
+            "index_pip_flexion": 0.03,
+            "index_dip_flexion": 0.02,
+            "middle_mcp_abduction": 0.00,
+            "middle_mcp_flexion": 0.04,
+            "middle_pip_flexion": 0.03,
+            "middle_dip_flexion": 0.02,
+            "ring_mcp_abduction": 0.05,
+            "ring_mcp_flexion": 0.04,
+            "ring_pip_flexion": 0.03,
+            "ring_dip_flexion": 0.02,
+            "little_mcp_abduction": 0.11,
+            "little_mcp_flexion": 0.04,
+            "little_pip_flexion": 0.03,
+            "little_dip_flexion": 0.02,
+        }
+    elif pose_name == "display_2":
+        # 握拳
+        return {
+            "thumb_cmc_opposition": 1.10,
+            "thumb_cmc_abduction": 0.40,
+            "thumb_mcp_flexion": 0.80,
+            "thumb_ip_flexion": 0.60,
+            "index_mcp_abduction": -0.10,
+            "index_mcp_flexion": 1.00,
+            "index_pip_flexion": 0.95,
+            "index_dip_flexion": 0.60,
+            "middle_mcp_abduction": -0.02,
+            "middle_mcp_flexion": 1.00,
+            "middle_pip_flexion": 0.95,
+            "middle_dip_flexion": 0.60,
+            "ring_mcp_abduction": 0.06,
+            "ring_mcp_flexion": 1.00,
+            "ring_pip_flexion": 0.95,
+            "ring_dip_flexion": 0.60,
+            "little_mcp_abduction": 0.12,
+            "little_mcp_flexion": 1.00,
+            "little_pip_flexion": 0.95,
+            "little_dip_flexion": 0.60,
+        }
+    elif pose_name == "display_ok":
+        # OK手势 - 拇指食指形成环形
+        return {
+            "thumb_cmc_opposition": 0.90,
+            "thumb_cmc_abduction": 0.50,
+            "thumb_mcp_flexion": 0.50,
+            "thumb_ip_flexion": 0.80,
+            "index_mcp_abduction": -0.08,
+            "index_mcp_flexion": 0.90,
+            "index_pip_flexion": 0.85,
+            "index_dip_flexion": 0.50,
+            "middle_mcp_abduction": 0.00,
+            "middle_mcp_flexion": 0.04,
+            "middle_pip_flexion": 0.03,
+            "middle_dip_flexion": 0.02,
+            "ring_mcp_abduction": 0.05,
+            "ring_mcp_flexion": 0.04,
+            "ring_pip_flexion": 0.03,
+            "ring_dip_flexion": 0.02,
+            "little_mcp_abduction": 0.11,
+            "little_mcp_flexion": 0.04,
+            "little_pip_flexion": 0.03,
+            "little_dip_flexion": 0.02,
+        }
+    elif pose_name == "display_pinch":
+        # 捏取手势 - 拇指食指捏合
+        return {
+            "thumb_cmc_opposition": 0.75,
+            "thumb_cmc_abduction": 0.40,
+            "thumb_mcp_flexion": 0.40,
+            "thumb_ip_flexion": 0.20,
+            "index_mcp_abduction": -0.04,
+            "index_mcp_flexion": 0.20,
+            "index_pip_flexion": 0.10,
+            "index_dip_flexion": 0.05,
+            "middle_mcp_abduction": 0.00,
+            "middle_mcp_flexion": 0.04,
+            "middle_pip_flexion": 0.03,
+            "middle_dip_flexion": 0.02,
+            "ring_mcp_abduction": 0.05,
+            "ring_mcp_flexion": 0.04,
+            "ring_pip_flexion": 0.03,
+            "ring_dip_flexion": 0.02,
+            "little_mcp_abduction": 0.11,
+            "little_mcp_flexion": 0.04,
+            "little_pip_flexion": 0.03,
+            "little_dip_flexion": 0.02,
+        }
+    else:
+        return get_finger_pose("open")
+
+
+def smoothstep(value: float) -> float:
+    """平滑插值函数"""
+    x = float(np.clip(value, 0.0, 1.0))
+    return x * x * (3.0 - 2.0 * x)
+
+
+def joint_qpos_addr(model: mujoco.MjModel, joint_name: str) -> int:
+    """获取关节qpos地址"""
+    jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+    return int(model.jnt_qposadr[jid])
+
+
+def joint_qvel_addr(model: mujoco.MjModel, joint_name: str) -> int:
+    """获取关节qvel地址"""
+    jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+    return int(model.jnt_dofadr[jid])
+
+
+def set_joint_qpos(model: mujoco.MjModel, data: mujoco.MjData, joint_name: str, value: float, damping: float = 0.0) -> None:
+    """设置关节位置
+
+    Args:
+        damping: 速度阻尼系数，0表示完全阻尼(速度=0)，正值允许惯性运动
+    """
+    jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+    if model.jnt_limited[jid]:
+        low, high = model.jnt_range[jid]
+        value = float(np.clip(value, low, high))
+    data.qpos[int(model.jnt_qposadr[jid])] = value
+    # 使用阻尼速度而不是零速度
+    data.qvel[int(model.jnt_dofadr[jid])] = damping
+
+
+def get_joint_qpos(model: mujoco.MjModel, data: mujoco.MjData, joint_name: str) -> float:
+    """获取关节位置"""
+    addr = joint_qpos_addr(model, joint_name)
+    return float(data.qpos[addr])
+
+
+def touch_sensor_value(model: mujoco.MjModel, data: mujoco.MjData, sensor_name: str) -> float:
+    """获取触觉传感器值"""
+    sensor_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, sensor_name)
+    if sensor_id < 0:
+        return 0.0
+    adr = int(model.sensor_adr[sensor_id])
+    dim = int(model.sensor_dim[sensor_id])
+    if dim <= 0:
+        return 0.0
+    return float(np.linalg.norm(data.sensordata[adr : adr + dim]))
+
+
+def site_position(model: mujoco.MjModel, data: mujoco.MjData, site_name: str) -> np.ndarray:
+    """获取site的世界坐标"""
+    site_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, site_name)
+    return data.site_xpos[site_id].copy()
+
+
+def apply_targets(
+    model: mujoco.MjModel,
+    data: mujoco.MjData,
+    hand_x: float,
+    hand_y: float,
+    hand_z: float,
+    wrist_yaw: float,
+    wrist_pitch: float,
+    wrist_roll: float,
+    finger_pose: dict[str, float],
+) -> None:
+    """应用所有关节目标"""
+    # 手部滑动 - 使用小阻尼允许惯性追踪
+    # 阻尼值控制追踪响应速度，0.5表示中等响应
+    tracking_damping = 0.5
+    set_joint_qpos(model, data, "hand_x", hand_x, damping=tracking_damping)
+    set_joint_qpos(model, data, "hand_y", hand_y, damping=tracking_damping)
+    set_joint_qpos(model, data, "hand_z", hand_z, damping=tracking_damping)
+
+    # 腕部旋转 - 阻尼较高(稳定控制)
+    set_joint_qpos(model, data, "wrist_yaw", wrist_yaw, damping=0.3)
+    set_joint_qpos(model, data, "wrist_pitch", wrist_pitch, damping=0.3)
+    set_joint_qpos(model, data, "wrist_roll", wrist_roll, damping=0.3)
+
+    # 手指关节 - 低阻尼(快速响应)
+    for joint_name, value in finger_pose.items():
+        set_joint_qpos(model, data, joint_name, value, damping=0.1)
+
+
+def interpolate_phase_targets(
+    start: tuple[float, ...],
+    end: tuple[float, ...],
+    alpha: float,
+) -> tuple[float, ...]:
+    """在两个Phase目标之间插值"""
+    return tuple(float(s * (1.0 - alpha) + e * alpha) for s, e in zip(start, end))
+
+
+def interpolate_finger_pose(
+    start: dict[str, float],
+    end: dict[str, float],
+    alpha: float,
+) -> dict[str, float]:
+    """在两个手指姿态之间平滑插值"""
+    result = {}
+    # 获取所有关节名称
+    all_keys = set(start.keys()) | set(end.keys())
+    for key in all_keys:
+        start_val = start.get(key, 0.0)
+        end_val = end.get(key, 0.0)
+        result[key] = start_val + (end_val - start_val) * alpha
+    return result
+
+
+def run_episode(
+    model: mujoco.MjModel,
+    scene_path: Path,
+    seed: int,
+    difficulty: str,
+    render_video: bool = True,
+    output_dir: Path | None = None,
+    debug: bool = False,
+) -> dict:
+    """
+    运行单次接球任务
+
+    Returns:
+        包含结果的字典
+    """
+    data = mujoco.MjData(model)
+    physics_dt = float(model.opt.timestep)
+
+    # 获取难度配置
+    config = TRACKING_CONFIGS.get(difficulty, TRACKING_CONFIGS["medium"])
+    launch_velocity = config["launch_velocity"]
+
+    # 初始化追踪器
+    tracker = BallTracker(model, data)
+    tracker.configure(difficulty)
+
+    # 重置场景
+    mujoco.mj_resetData(model, data)
+    data.ctrl[:] = 0.0
+
+    # 设置球的初始位置（发射器附近）
+    ball_start_pos = (-0.34, -0.06, 0.440)
+    ball_joint_name = "sphere_object_joint"
+    ball_qpos_adr = joint_qpos_addr(model, ball_joint_name)
+    ball_qvel_adr = joint_qvel_addr(model, ball_joint_name)
+    data.qpos[ball_qpos_adr : ball_qpos_adr + 3] = list(ball_start_pos)
+    data.qpos[ball_qpos_adr + 3 : ball_qpos_adr + 7] = [1.0, 0.0, 0.0, 0.0]  # 单位四元数
+    data.qvel[ball_qpos_adr : ball_qpos_adr + 6] = 0.0
+
+    # 设置手部初始位置
+    mujoco.mj_forward(model, data)
+
+    # 初始化渲染器
+    front_renderer = None
+    top_renderer = None
+    if render_video:
+        try:
+            front_renderer = mujoco.Renderer(model, width=640, height=480)
+            top_renderer = mujoco.Renderer(model, width=320, height=240)
+        except Exception as exc:
+            print(f"Warning: Could not initialize renderer: {exc}")
+            render_video = False
+
+    # 摄像头ID
+    front_camera_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_CAMERA, "front_camera")
+    if front_camera_id < 0:
+        front_camera_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_CAMERA, "grasp_camera")
+    top_camera_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_CAMERA, "top_camera")
+
+    # Phase序列
+    phases = get_default_phases()
+
+    # 状态跟踪
+    ball_launched = False
+    catch_success = False
+    first_contact_time = None
+    trajectory = []
+    contact_timeline = []
+    video_frames = []
+    force_history = []  # 手指力度历史记录（用于曲线图）
+
+    # 关节范围
+    x_min, x_max = get_joint_limits(model, "hand_x")
+    y_min, y_max = get_joint_limits(model, "hand_y")
+
+    # 球边界检测
+    BALL_BOUND_X = 0.50  # X方向边界
+    BALL_BOUND_Y = 0.40  # Y方向边界
+
+    if debug:
+        print(f"[BALL CATCH] Starting episode with seed={seed}, difficulty={difficulty}")
+        print(f"[BALL CATCH] Launch velocity: {launch_velocity}")
+        print(f"[BALL CATCH] Phase count: {len(phases)}")
+
+    # 主循环
+    step_counter = 0
+    total_time = sum(p.duration_s for p in phases)
+
+    # 记录上一个Phase的手指姿态用于插值
+    prev_finger_pose = get_finger_pose("open")
+
+    # 追踪轨迹历史（用于可视化）
+    trajectory_history = []
+
+    for phase in phases:
+        phase_steps = max(1, int(round((phase.duration_s * 2.0) / physics_dt)))  # 2x speed
+
+        if debug:
+            print(f"[PHASE] {phase.name} - {phase.description} ({phase.duration_s}s)")
+
+        # 获取当前Phase的完整目标姿态
+        target_finger_pose = get_finger_pose(phase.finger_pose)
+
+        for local_step in range(phase_steps):
+            alpha = smoothstep(local_step / max(1, phase_steps - 1))
+
+            # 手指姿态处理：
+            # - 追踪阶段(tracking_enabled): 保持张开，不做插值，避免鬼畜
+            # - 抓取阶段: 使用平滑插值
+            if phase.tracking_enabled and not phase.catch_enabled:
+                # 追踪阶段：保持张开等待姿态
+                finger_pose = get_finger_pose("open_wait")
+            else:
+                # 抓取或非追踪阶段：平滑过渡
+                finger_pose = interpolate_finger_pose(prev_finger_pose, target_finger_pose, alpha)
+
+            # Phase内插值 (位置固定，不插值)
+            hand_x = phase.hand_x
+            hand_y = phase.hand_y
+            hand_z = phase.hand_z
+            wrist_yaw = phase.wrist_yaw
+            wrist_pitch = phase.wrist_pitch
+            wrist_roll = phase.wrist_roll
+
+            # 追踪调整
+            if phase.tracking_enabled and tracker.launched:
+                current_x = get_joint_qpos(model, data, "hand_x")
+                current_y = get_joint_qpos(model, data, "hand_y")
+
+                delta_x, delta_y = tracker.compute_tracking_adjustment(current_x, current_y)
+
+                # 应用追踪调整
+                new_x = clamp_to_range(current_x + delta_x, x_min, x_max)
+                new_y = clamp_to_range(current_y + delta_y, y_min, y_max)
+
+                hand_x = new_x
+                hand_y = new_y
+
+            # 应用目标
+            apply_targets(
+                model, data,
+                hand_x, hand_y, hand_z,
+                wrist_yaw, wrist_pitch, wrist_roll,
+                finger_pose,
+            )
+
+            # 发射球
+            if phase.ball_launch and not ball_launched:
+                tracker.launch(launch_velocity, seed=seed)
+                ball_launched = True
+                if debug:
+                    print(f"[BALL LAUNCH] Ball launched at time {data.time:.3f}s")
+
+            # 物理步进
+            mujoco.mj_forward(model, data)
+            mujoco.mj_step(model, data)
+
+            # 接触检测
+            active_fingers = 0
+            tactile_data = {}
+            for finger, sensor_name in TOUCH_SENSOR_BY_FINGER.items():
+                sensor_val = touch_sensor_value(model, data, sensor_name)
+                tactile_data[finger] = sensor_val
+                if sensor_val > 0.01:
+                    active_fingers += 1
+
+            # 记录力度历史（每10帧记录一次）
+            if step_counter % 10 == 0 and tracker.launched:
+                force_history.append({
+                    "time": float(data.time),
+                    "phase": phase.name,
+                    "forces": {f: float(v) for f, v in tactile_data.items()},
+                    "total_force": sum(tactile_data.values()),
+                })
+
+            # 检查抓取 (只要有任何手指接触就记录)
+            palm_pos = site_position(model, data, "palm_center_site")
+            if tracker.launched:
+                # 记录第一次接触时间
+                if first_contact_time is None and active_fingers >= 1:
+                    first_contact_time = float(data.time)
+                    if debug:
+                        print(f"[CONTACT] First contact at time {data.time:.3f}s, fingers={active_fingers}")
+                # 检查是否达成抓取
+                if phase.catch_enabled:
+                    if active_fingers >= 2:  # 2指接触就认为成功
+                        catch_success = True
+
+            # 边界检测 - 如果球滚出桌面且未成功抓取，停止
+            ball_pos = tracker.get_ball_position()
+            if tracker.launched and not catch_success:
+                if abs(ball_pos[0]) > BALL_BOUND_X or abs(ball_pos[1]) > BALL_BOUND_Y:
+                    if debug:
+                        print(f"[BOUND] Ball out of bounds at step {step_counter}: pos={ball_pos}")
+                    break  # 退出主循环
+
+            # 记录
+            ball_vel = tracker.get_ball_velocity()
+
+            # 更新追踪轨迹历史
+            grasp_prediction = {}
+            if tracker.launched:
+                # 计算追踪误差
+                tracking_error = ((ball_pos[0] - hand_x)**2 + (ball_pos[1] - hand_y)**2)**0.5
+
+                trajectory_history.append({
+                    "ball_pos": ball_pos[:2].tolist(),
+                    "hand_pos": [hand_x, hand_y],
+                    "ball_vel": ball_vel[:2].tolist(),
+                    "tracking_error": tracking_error,
+                    "time": float(data.time),
+                })
+                # 只保留最近80个点
+                if len(trajectory_history) > 80:
+                    trajectory_history.pop(0)
+
+                # 计算抓取预测
+                grasp_prediction = tracker.predict_grasp_timing(palm_pos)
+
+            record = {
+                "step": step_counter,
+                "time": round(float(data.time), 4),
+                "phase": phase.name,
+                "ball_position": ball_pos.round(5).tolist(),
+                "ball_velocity": ball_vel.round(5).tolist(),
+                "hand_position": [hand_x, hand_y, hand_z],
+                "palm_position": palm_pos.round(5).tolist(),
+                "active_fingers": active_fingers,
+                "tactile_data": tactile_data,
+                "ball_launched": ball_launched,
+                "catch_success": catch_success,
+                "trajectory_history": trajectory_history.copy(),
+                "force_history": force_history.copy(),
+                "grasp_prediction": {k: float(v) if isinstance(v, (np.floating, np.integer)) else bool(v) if isinstance(v, (np.bool_,)) else v for k, v in grasp_prediction.items()} if grasp_prediction else {},
+            }
+            trajectory.append(record)
+
+            if step_counter % 10 == 0 or phase.name in {"HAND_CLOSE", "CATCH_HOLD"}:
+                contact_timeline.append(record)
+
+            # 渲染视频 - 双视角（前后排列，高度统一为360）
+            if render_video and front_renderer and step_counter % 5 == 0:
+                try:
+                    front_renderer.update_scene(data, camera=front_camera_id)
+                    front_frame = front_renderer.render()
+
+                    top_renderer.update_scene(data, camera=top_camera_id)
+                    top_frame = top_renderer.render()
+
+                    # 统一高度为360，宽度等比缩放
+                    target_h = 360
+                    front_h, front_w = front_frame.shape[:2]
+                    top_h, top_w = top_frame.shape[:2]
+
+                    front_scaled = np.array(Image.fromarray(front_frame).resize((int(front_w * target_h / front_h), target_h)))
+                    top_scaled = np.array(Image.fromarray(top_frame).resize((int(top_w * target_h / top_h), target_h)))
+
+                    # 左右合并视角
+                    divider = np.full((target_h, 4, 3), 40, dtype=np.uint8)
+                    side_by_side = np.concatenate([front_scaled, divider, top_scaled], axis=1)
+
+                    # 添加HUD
+                    frame = annotate_frame(side_by_side, record)
+
+                    video_frames.append(frame)
+                except Exception as exc:
+                    if debug:
+                        print(f"[RENDER] Warning: {exc}")
+
+            step_counter += 1
+
+        # Phase结束后更新prev_finger_pose为当前目标
+        prev_finger_pose = target_finger_pose
+
+    # 统计结果
+    tracking_stats = tracker.get_tracking_stats()
+
+    result = {
+        "project": "Ball Catch",
+        "seed": seed,
+        "difficulty": difficulty,
+        "total_steps": step_counter,
+        "total_time_s": round(float(data.time), 3),
+        "ball_launched": ball_launched,
+        "first_contact_time_s": first_contact_time,
+        "catch_success": catch_success,
+        "active_fingers_max": max((r["active_fingers"] for r in trajectory), default=0),
+        "tracking_stats": tracking_stats,
+        "phases": [p.name for p in phases],
+        "trajectory_length": len(trajectory),
+        "force_history": force_history,
+    }
+
+    if debug:
+        print(f"\n[SUMMARY] Episode completed:")
+        print(f"  Total time: {result['total_time_s']}s")
+        print(f"  Ball launched: {result['ball_launched']}")
+        print(f"  Catch success: {result['catch_success']}")
+        print(f"  First contact: {result['first_contact_time_s']}")
+
+    # 保存输出
+    if output_dir:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # 保存轨迹
+        with open(output_dir / "trajectory.json", "w", encoding="utf-8") as f:
+            json.dump(trajectory, f, indent=2, ensure_ascii=False)
+
+        # 保存摘要
+        with open(output_dir / "summary.json", "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+
+        # 保存性能报告
+        try:
+            # 计算相对响应时间（从球发射开始）
+            launch_time = tracking_stats.get("launch_time", 0)
+            relative_response_time = (first_contact_time - launch_time) if (first_contact_time and launch_time) else None
+
+            report_data = {
+                "project": "Ball Catch",
+                "seed": seed,
+                "difficulty": difficulty,
+                "catch_success": catch_success,
+                "total_time_s": round(float(data.time), 3),
+                "first_contact_time_s": first_contact_time,
+                "relative_response_time_s": relative_response_time,
+                "active_fingers_max": result["active_fingers_max"],
+                "tracking_stats": tracking_stats,
+            }
+
+            # 计算性能等级
+            score = 0
+            reasons = []
+
+            if catch_success:
+                score += 30
+                reasons.append("Catch successful (+30)")
+            else:
+                reasons.append("Catch failed (0)")
+
+            mean_error = tracking_stats.get("mean_tracking_error_m", 999)
+            if mean_error < 0.02:
+                score += 25
+                reasons.append(f"Excellent tracking ({mean_error*100:.1f}cm, +25)")
+            elif mean_error < 0.05:
+                score += 22
+                reasons.append(f"Good tracking ({mean_error*100:.1f}cm, +22)")
+            elif mean_error < 0.10:
+                score += 18
+                reasons.append(f"Fair tracking ({mean_error*100:.1f}cm, +18)")
+            else:
+                score += 12
+                reasons.append(f"Poor tracking ({mean_error*100:.1f}cm, +12)")
+
+            max_fingers = result["active_fingers_max"]
+            if max_fingers >= 4:
+                score += 25
+                reasons.append(f"Excellent grasp ({max_fingers} fingers, +25)")
+            elif max_fingers >= 3:
+                score += 20
+                reasons.append(f"Good grasp ({max_fingers} fingers, +20)")
+            else:
+                score += 12
+                reasons.append(f"Fair grasp ({max_fingers} fingers, +12)")
+
+            # 使用相对响应时间（从球发射开始计算）
+            if relative_response_time is not None:
+                if relative_response_time < 1.0:
+                    score += 20
+                    reasons.append(f"Fast response ({relative_response_time:.2f}s, +20)")
+                elif relative_response_time < 2.0:
+                    score += 15
+                    reasons.append(f"Good response ({relative_response_time:.2f}s, +15)")
+                else:
+                    score += 10
+                    reasons.append(f"Normal response ({relative_response_time:.2f}s, +10)")
+            else:
+                score += 5
+                reasons.append("No contact recorded (+5)")
+
+            grade = "S" if score >= 90 else "A" if score >= 80 else "B" if score >= 70 else "C" if score >= 55 else "D"
+
+            report_data["performance_grade"] = {
+                "score": score,
+                "grade": grade,
+                "reasons": reasons,
+            }
+
+            with open(output_dir / "performance_report.json", "w", encoding="utf-8") as f:
+                json.dump(report_data, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass  # 性能报告失败不影响主流程
+
+        # 保存视频
+        if video_frames:
+            iio.imwrite(output_dir / "demo.mp4", video_frames, fps=30, plugin="pyav", codec="libx264")
+            print(f"Video saved to {output_dir / 'demo.mp4'}")
+
+        print(f"Results saved to {output_dir}")
+
+    return result
+
+
+def world_to_image(x: float, y: float, img_w: int, img_h: int,
+                   x_min: float = -0.5, x_max: float = 0.5,
+                   y_min: float = -0.4, y_max: float = 0.4) -> tuple[int, int]:
+    """将世界坐标转换为图像像素坐标"""
+    px = int((x - x_min) / (x_max - x_min) * img_w)
+    py = int((1 - (y - y_min) / (y_max - y_min)) * img_h)
+    return px, py
+
+
+def annotate_frame(frame: np.ndarray, record: dict) -> np.ndarray:
+    """为帧添加HUD标注、触觉可视化和追踪轨迹"""
+    if Image is None or ImageDraw is None:
+        return frame
+
+    image = Image.fromarray(frame).convert("RGBA")
+    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    font = ImageFont.load_default()
+
+    # 获取轨迹历史
+    trajectory_history = record.get("trajectory_history", [])
+
+    # 在俯视区域绘制追踪轨迹（俯视图在右侧）
+    img_w, img_h = image.size
+    top_view_start_x = img_w // 2 + 4  # 俯视图起始位置
+
+    if trajectory_history and len(trajectory_history) > 1:
+        # 绘制轨迹线
+        points = []
+        for point in trajectory_history:
+            px, py = world_to_image(point["ball_pos"][0], point["ball_pos"][1], 320, 360)
+            points.append((px + top_view_start_x, py))
+
+        # 绘制轨迹渐变（从旧到新，颜色从暗变亮）
+        for i in range(len(points) - 1):
+            alpha = int(80 + 175 * i / len(points))
+            color = (50, 200, 255, alpha)  # 蓝色渐变
+            draw.line([points[i], points[i + 1]], fill=color, width=2)
+
+        # 绘制球的当前位置（红色圆点）
+        if trajectory_history:
+            latest = trajectory_history[-1]
+            px, py = world_to_image(latest["ball_pos"][0], latest["ball_pos"][1], 320, 360)
+            draw.ellipse([px + top_view_start_x - 6, py - 6, px + top_view_start_x + 6, py + 6],
+                         fill=(255, 50, 50), outline=(255, 255, 255))
+
+        # 绘制手的当前位置（绿色方块）
+        if trajectory_history:
+            latest = trajectory_history[-1]
+            hx, hy = world_to_image(latest["hand_pos"][0], latest["hand_pos"][1], 320, 360)
+            draw.rectangle([hx + top_view_start_x - 5, hy - 5, hx + top_view_start_x + 5, hy + 5],
+                          fill=(50, 255, 100), outline=(255, 255, 255))
+
+        # 绘制预测轨迹（黄色虚线）
+        if trajectory_history and len(trajectory_history) >= 2:
+            latest = trajectory_history[-1]
+            ball_vel = record.get("ball_velocity", [0, 0, 0])
+            # 预测0.5秒后的位置
+            pred_x = latest["ball_pos"][0] + ball_vel[0] * 0.5
+            pred_y = latest["ball_pos"][1] + ball_vel[1] * 0.5
+            px, py = world_to_image(pred_x, pred_y, 320, 360)
+            draw.ellipse([px + top_view_start_x - 4, py - 4, px + top_view_start_x + 4, py + 4],
+                         fill=(255, 255, 50), outline=(255, 255, 255))
+
+        # 绘制图例
+        legend_x = top_view_start_x + 10
+        legend_y = 10
+        draw.ellipse([legend_x - 3, legend_y - 3, legend_x + 3, legend_y + 3], fill=(255, 50, 50))
+        draw.text((legend_x + 8, legend_y - 4), "Ball", fill=(200, 200, 200))
+        draw.rectangle([legend_x - 3, legend_y + 12 - 3, legend_x + 3, legend_y + 12 + 3], fill=(50, 255, 100))
+        draw.text((legend_x + 8, legend_y + 8), "Hand", fill=(200, 200, 200))
+        draw.ellipse([legend_x - 2, legend_y + 27 - 2, legend_x + 2, legend_y + 27 + 2], fill=(255, 255, 50))
+        draw.text((legend_x + 8, legend_y + 23), "Pred", fill=(200, 200, 200))
+
+        # 绘制速度矢量箭头
+        if trajectory_history and len(trajectory_history) >= 2:
+            latest = trajectory_history[-1]
+            ball_vel = latest.get("ball_vel", [0, 0])
+            if ball_vel and (abs(ball_vel[0]) > 0.001 or abs(ball_vel[1]) > 0.001):
+                ax, ay = world_to_image(latest["ball_pos"][0], latest["ball_pos"][1], 320, 360)
+                ax += top_view_start_x
+                arrow_scale = 25
+                dx = ball_vel[0] * arrow_scale
+                dy = -ball_vel[1] * arrow_scale
+                end_x = ax + dx
+                end_y = ay + dy
+                draw.line([(ax, ay), (end_x, end_y)], fill=(255, 100, 100), width=2)
+
+        # 绘制追踪误差曲线图
+        if len(trajectory_history) > 5:
+            graph_y = 330
+            graph_h = 22
+            graph_w = 300
+            graph_x = top_view_start_x + 10
+            draw.rectangle([graph_x, graph_y, graph_x + graph_w, graph_y + graph_h], fill=(20, 20, 30, 200))
+            draw.rectangle([graph_x, graph_y, graph_x + graph_w, graph_y + graph_h], outline=(80, 80, 80))
+            errors = [p["tracking_error"] for p in trajectory_history[-40:]]
+            if errors:
+                max_error = max(max(errors), 0.15)
+                for i in range(len(errors) - 1):
+                    x1 = graph_x + int(i * graph_w / 40)
+                    x2 = graph_x + int((i + 1) * graph_w / 40)
+                    y1 = graph_y + graph_h - int(errors[i] / max_error * graph_h)
+                    y2 = graph_y + graph_h - int(errors[i + 1] / max_error * graph_h)
+                    err_norm = min(errors[i] / max_error, 1.0)
+                    r = int(50 + err_norm * 200)
+                    g = int(200 - err_norm * 150)
+                    draw.line([(x1, y1), (x2, y2)], fill=(r, g, 50), width=1)
+            draw.text((graph_x + 2, graph_y - 10), "Err", fill=(120, 120, 120))
+
+    # 触觉传感器数据
+    tactile_data = record.get("tactile_data", {})
+    finger_colors = {
+        "thumb": (255, 200, 100),
+        "index": (100, 200, 255),
+        "middle": (100, 255, 150),
+        "ring": (255, 150, 200),
+        "little": (200, 150, 255),
+    }
+
+    # 绘制触觉可视化面板（右下角）
+    tactile_panel_x = image.size[0] - 180
+    tactile_panel_y = 60
+    tactile_panel_w = 160
+    tactile_panel_h = 100
+
+    draw.rounded_rectangle(
+        (tactile_panel_x, tactile_panel_y, tactile_panel_x + tactile_panel_w, tactile_panel_y + tactile_panel_h),
+        radius=6, fill=(14, 18, 22, 220)
+    )
+    draw.text((tactile_panel_x + 10, tactile_panel_y + 8), "TACTILE SENSORS", fill=(200, 200, 200, 255), font=font)
+
+    # 绘制每个手指的触觉状态
+    finger_y = tactile_panel_y + 30
+    finger_spacing = 18
+    for i, (finger, color) in enumerate(finger_colors.items()):
+        value = tactile_data.get(finger, 0.0)
+        # 颜色：接触时为亮色，未接触时为暗色
+        if value > 0.01:
+            bar_color = color
+            text_color = (255, 255, 255, 255)
+        else:
+            bar_color = (60, 60, 60)
+            text_color = (120, 120, 120, 255)
+
+        # 绘制进度条
+        bar_x = tactile_panel_x + 10
+        bar_y = finger_y + i * finger_spacing
+        bar_width = int(100 * min(value, 1.0))
+
+        draw.text((bar_x, bar_y), finger[:1].upper(), fill=text_color, font=font)
+        draw.rectangle([bar_x + 15, bar_y + 2, bar_x + 15 + bar_width, bar_y + 12], fill=bar_color)
+
+        # 数值
+        draw.text((bar_x + 120, bar_y), f"{value:.2f}", fill=text_color, font=font)
+
+    # ===== 手指力度曲线面板 =====
+    force_history = record.get("force_history", [])
+    if force_history:
+        # 力度曲线面板位置（左下角）
+        force_panel_x = 8
+        force_panel_y = image.size[1] - 100
+        force_panel_w = 280
+        force_panel_h = 90
+
+        draw.rounded_rectangle(
+            (force_panel_x, force_panel_y, force_panel_x + force_panel_w, force_panel_y + force_panel_h),
+            radius=6, fill=(14, 18, 22, 220)
+        )
+        draw.text((force_panel_x + 8, force_panel_y + 6), "GRIP FORCE CURVE", fill=(200, 200, 200, 255), font=font)
+
+        # 绘制力度曲线
+        graph_x = force_panel_x + 10
+        graph_y = force_panel_y + 25
+        graph_w = force_panel_w - 20
+        graph_h = 55
+
+        # 背景网格
+        for i in range(5):
+            grid_y = graph_y + i * (graph_h // 4)
+            draw.line([(graph_x, grid_y), (graph_x + graph_w, grid_y)], fill=(50, 50, 60), width=1)
+
+        # 获取最近的力度数据（最多显示60个点）
+        recent_forces = force_history[-60:]
+        if len(recent_forces) >= 2:
+            times = [f["time"] for f in recent_forces]
+            forces = [f["total_force"] for f in recent_forces]
+
+            # 时间范围
+            t_min, t_max = min(times), max(times)
+            t_range = max(t_max - t_min, 0.1)
+
+            # 力度范围
+            f_max = max(max(forces), 1.0)
+
+            # 绘制每根手指的力度曲线
+            finger_names = ["thumb", "index", "middle", "ring", "little"]
+            for f_idx, f_name in enumerate(finger_names):
+                f_forces = [f["forces"].get(f_name, 0.0) for f in recent_forces]
+                points = []
+                for i, (t, force) in enumerate(zip(times, f_forces)):
+                    x = graph_x + int((t - t_min) / t_range * graph_w)
+                    y = graph_y + graph_h - int(force / f_max * graph_h)
+                    points.append((x, y))
+
+                # 绘制线条
+                for i in range(len(points) - 1):
+                    alpha = 180 if f_forces[i] > 0.01 or f_forces[i + 1] > 0.01 else 80
+                    draw.line([points[i], points[i + 1]], fill=(*finger_colors[f_name][:3], alpha), width=1)
+
+            # 绘制总力度曲线（粗线）
+            total_points = []
+            for i, (t, force) in enumerate(zip(times, forces)):
+                x = graph_x + int((t - t_min) / t_range * graph_w)
+                y = graph_y + graph_h - int(force / f_max * graph_h)
+                total_points.append((x, y))
+
+            for i in range(len(total_points) - 1):
+                draw.line([total_points[i], total_points[i + 1]], fill=(255, 255, 255), width=2)
+
+            # Y轴标签
+            draw.text((graph_x - 2, graph_y - 2), f"{f_max:.1f}", fill=(120, 120, 120), font=font)
+            draw.text((graph_x - 2, graph_y + graph_h - 8), "0", fill=(120, 120, 120), font=font)
+
+    # 信息面板（左上角）- 增强版
+    grasp_info = record.get("grasp_prediction", {})
+    lines = [
+        f"Phase: {record['phase']}",
+        f"Time: {record['time']:.2f}s",
+        f"Ball: [{record['ball_position'][0]:.3f}, {record['ball_position'][1]:.3f}]",
+        f"Hand: [{record['hand_position'][0]:.3f}, {record['hand_position'][1]:.3f}]",
+        f"Active: {record['active_fingers']}/5",
+    ]
+
+    # 添加抓取预测信息
+    if grasp_info:
+        prob = grasp_info.get("success_probability", 0) * 100
+        dist = grasp_info.get("distance_to_hand", 0) * 100
+        should = "CLOSE" if grasp_info.get("should_close", False) else "WAIT"
+        lines.append(f"Prob: {prob:.0f}% | Dist: {dist:.1f}cm")
+        lines.append(f"Action: {should}")
+
+    line_height = 18
+    panel_width = 320
+    panel_height = 14 + line_height * len(lines)
+
+    draw.rounded_rectangle((8, 8, 8 + panel_width, 8 + panel_height), radius=6, fill=(14, 18, 22, 196))
+    for i, line in enumerate(lines):
+        draw.text((18, 16 + i * line_height), line, fill=(245, 247, 250, 255), font=font)
+
+    # 状态标签
+    status = "SUCCESS" if record["catch_success"] else ("TRACKING" if record["ball_launched"] else "READY")
+    status_color = (16, 180, 80, 210) if record["catch_success"] else (80, 120, 200, 210)
+    draw.rounded_rectangle((image.size[0] - 130, 8, image.size[0] - 10, 42), radius=6, fill=status_color)
+    draw.text((image.size[0] - 116, 19), status, fill=(255, 255, 255, 255), font=font)
+
+    return np.asarray(Image.alpha_composite(image, overlay).convert("RGB"))
+
+
+def main():
+    """主函数"""
+    parser = argparse.ArgumentParser(description="Ball Catch - 接球任务")
+    parser.add_argument("--seed", type=int, default=DEFAULT_SEED, help="随机种子")
+    parser.add_argument(
+        "--difficulty",
+        type=str,
+        choices=["easy", "medium", "hard"],
+        default=DEFAULT_DIFFICULTY,
+        help="难度级别",
+    )
+    parser.add_argument("--scene", type=str, default=str(DEFAULT_SCENE), help="场景XML路径")
+    parser.add_argument("--output", type=str, default=str(DEFAULT_OUTPUT_DIR), help="输出目录")
+    parser.add_argument("--no-video", action="store_true", help="禁用视频渲染")
+    parser.add_argument("--debug", action="store_true", help="调试模式")
+
+    args = parser.parse_args()
+
+    # 加载场景
+    scene_path = Path(args.scene)
+    if not scene_path.exists():
+        print(f"Error: Scene file not found: {scene_path}")
+        sys.exit(1)
+
+    print(f"Loading scene: {scene_path}")
+    model = mujoco.MjModel.from_xml_path(str(scene_path))
+    print(f"Model loaded: {model.nq} DOFs, {model.nbody} bodies")
+
+    # 运行
+    result = run_episode(
+        model=model,
+        scene_path=scene_path,
+        seed=args.seed,
+        difficulty=args.difficulty,
+        render_video=not args.no_video,
+        output_dir=Path(args.output) if args.output else None,
+        debug=args.debug,
+    )
+
+    print(f"\n=== RESULT ===")
+    print(f"Catch success: {result['catch_success']}")
+    print(f"Total time: {result['total_time_s']}s")
+    print(f"Active fingers max: {result['active_fingers_max']}")
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
