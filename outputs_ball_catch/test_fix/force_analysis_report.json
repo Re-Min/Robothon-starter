@@ -1,0 +1,57 @@
+{
+  "title": "Ball Catch - Finger Force Analysis",
+  "analysis_timestamp": "2026",
+  "summary": {
+    "total_trials": 32,
+    "peak_force_achieved": 642.13,
+    "mean_force": 0.803,
+    "force_samples_analyzed": 3160,
+    "contact_samples": 7,
+    "total_samples": 3160,
+    "avg_fingers_contacted": 0.0,
+    "multi_finger_rate": 0.1,
+    "force_stability_score": 0,
+    "performance_grade": "B",
+    "performance_score": 75,
+    "max_active_fingers": 3,
+    "catch_success": true
+  },
+  "finger_analysis": {
+    "thumb": {
+      "contact_count": 1,
+      "contact_rate": 0.0,
+      "mean_force": 0.049,
+      "peak_force": 154.011,
+      "total_contact_time_s": 0.05
+    },
+    "index": {
+      "contact_count": 2,
+      "contact_rate": 0.1,
+      "mean_force": 0.12,
+      "peak_force": 299.412,
+      "total_contact_time_s": 0.1
+    },
+    "middle": {
+      "contact_count": 6,
+      "contact_rate": 0.2,
+      "mean_force": 0.608,
+      "peak_force": 642.13,
+      "total_contact_time_s": 0.3
+    },
+    "ring": {
+      "contact_count": 1,
+      "contact_rate": 0.0,
+      "mean_force": 0.025,
+      "peak_force": 80.143,
+      "total_contact_time_s": 0.05
+    },
+    "little": {
+      "contact_count": 0,
+      "contact_rate": 0.0,
+      "mean_force": 0.0,
+      "peak_force": 0.0,
+      "total_contact_time_s": 0.0
+    }
+  },
+  "recommendations": []
+}

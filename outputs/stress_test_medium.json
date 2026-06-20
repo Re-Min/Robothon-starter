@@ -1,0 +1,71 @@
+{
+  "project": "Ball Catch",
+  "evaluation": "stress_test_medium",
+  "total_trials": 8,
+  "difficulty": "medium",
+  "trials": [
+    {
+      "seed": 0,
+      "catch_success": true,
+      "first_contact": true,
+      "active_fingers_max": 2,
+      "total_time_s": 29.6
+    },
+    {
+      "seed": 1,
+      "catch_success": true,
+      "first_contact": true,
+      "active_fingers_max": 3,
+      "total_time_s": 29.6
+    },
+    {
+      "seed": 2,
+      "catch_success": true,
+      "first_contact": true,
+      "active_fingers_max": 2,
+      "total_time_s": 29.6
+    },
+    {
+      "seed": 3,
+      "catch_success": true,
+      "first_contact": true,
+      "active_fingers_max": 3,
+      "total_time_s": 29.6
+    },
+    {
+      "seed": 4,
+      "catch_success": true,
+      "first_contact": true,
+      "active_fingers_max": 3,
+      "total_time_s": 29.6
+    },
+    {
+      "seed": 5,
+      "catch_success": true,
+      "first_contact": true,
+      "active_fingers_max": 3,
+      "total_time_s": 29.6
+    },
+    {
+      "seed": 6,
+      "catch_success": true,
+      "first_contact": true,
+      "active_fingers_max": 2,
+      "total_time_s": 29.6
+    },
+    {
+      "seed": 7,
+      "catch_success": true,
+      "first_contact": true,
+      "active_fingers_max": 3,
+      "total_time_s": 29.6
+    }
+  ],
+  "summary": {
+    "successful_catches": 8,
+    "partial_contacts": 0,
+    "missed_catches": 0,
+    "catch_rate": 1.0,
+    "contact_rate": 1.0
+  }
+}

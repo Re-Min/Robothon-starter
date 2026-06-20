@@ -1,0 +1,51 @@
+{
+  "title": "Ball Catch - Finger Force Analysis",
+  "analysis_timestamp": "2026",
+  "summary": {
+    "total_trials": 32,
+    "peak_force_achieved": 493.812,
+    "mean_force": 104.73,
+    "force_samples_analyzed": 3160,
+    "avg_fingers_contacted": 0.44,
+    "multi_finger_rate": 21.9,
+    "force_stability_score": 0
+  },
+  "finger_analysis": {
+    "thumb": {
+      "contact_count": 0,
+      "contact_rate": 0.0,
+      "mean_force": 0.0,
+      "peak_force": 0.0,
+      "total_contact_time_s": 0.0
+    },
+    "index": {
+      "contact_count": 694,
+      "contact_rate": 22.0,
+      "mean_force": 50.134,
+      "peak_force": 242.118,
+      "total_contact_time_s": 34.7
+    },
+    "middle": {
+      "contact_count": 2,
+      "contact_rate": 0.1,
+      "mean_force": 0.054,
+      "peak_force": 141.656,
+      "total_contact_time_s": 0.1
+    },
+    "ring": {
+      "contact_count": 692,
+      "contact_rate": 21.9,
+      "mean_force": 54.45,
+      "peak_force": 254.515,
+      "total_contact_time_s": 34.6
+    },
+    "little": {
+      "contact_count": 1,
+      "contact_rate": 0.0,
+      "mean_force": 0.091,
+      "peak_force": 288.919,
+      "total_contact_time_s": 0.05
+    }
+  },
+  "recommendations": []
+}

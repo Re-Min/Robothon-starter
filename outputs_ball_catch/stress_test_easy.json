@@ -1,0 +1,137 @@
+{
+  "project": "Ball Catch",
+  "evaluation": "stress_test_easy",
+  "total_trials": 8,
+  "difficulty": "easy",
+  "trials": [
+    {
+      "seed": 0,
+      "ball_launched": true,
+      "first_contact_time_s": null,
+      "catch_success": false,
+      "active_fingers_max": 0,
+      "tracking_delayed": true
+    },
+    {
+      "seed": 1,
+      "ball_launched": true,
+      "first_contact_time_s": null,
+      "catch_success": false,
+      "active_fingers_max": 0,
+      "tracking_delayed": false
+    },
+    {
+      "seed": 2,
+      "ball_launched": true,
+      "first_contact_time_s": null,
+      "catch_success": false,
+      "active_fingers_max": 0,
+      "tracking_delayed": true
+    },
+    {
+      "seed": 3,
+      "ball_launched": true,
+      "first_contact_time_s": null,
+      "catch_success": false,
+      "active_fingers_max": 0,
+      "tracking_delayed": false
+    },
+    {
+      "seed": 4,
+      "ball_launched": true,
+      "first_contact_time_s": 7.72999999999988,
+      "catch_success": false,
+      "active_fingers_max": 3,
+      "tracking_delayed": true
+    },
+    {
+      "seed": 5,
+      "ball_launched": true,
+      "first_contact_time_s": null,
+      "catch_success": false,
+      "active_fingers_max": 0,
+      "tracking_delayed": false
+    },
+    {
+      "seed": 6,
+      "ball_launched": true,
+      "first_contact_time_s": null,
+      "catch_success": false,
+      "active_fingers_max": 0,
+      "tracking_delayed": true
+    },
+    {
+      "seed": 7,
+      "ball_launched": true,
+      "first_contact_time_s": null,
+      "catch_success": false,
+      "active_fingers_max": 0,
+      "tracking_delayed": false
+    }
+  ],
+  "perturbations": [
+    {
+      "position_offset_x": 0.002739233746429086,
+      "position_offset_y": -0.004604265724722594,
+      "velocity_scale": 0.9540973523936195,
+      "friction_scale": 0.9033055271057059,
+      "tracking_delay_ms": 16.265404784005447
+    },
+    {
+      "position_offset_x": 0.00023643249400513364,
+      "position_offset_y": 0.009009273926518705,
+      "velocity_scale": 0.9644159612719634,
+      "friction_scale": 1.0897298894274488,
+      "tracking_delay_ms": 6.236629040209709
+    },
+    {
+      "position_offset_x": -0.004767757315013672,
+      "position_offset_y": -0.004030177131717534,
+      "velocity_scale": 1.031422574059428,
+      "friction_scale": 0.9183831884270194,
+      "tracking_delay_ms": 12.00201051931308
+    },
+    {
+      "position_offset_x": -0.008287016657127513,
+      "position_offset_y": -0.005263789868078006,
+      "velocity_scale": 1.0301274465206398,
+      "friction_scale": 1.0164324072128736,
+      "tracking_delay_ms": 1.8825728448079837
+    },
+    {
+      "position_offset_x": 0.008861122111447352,
+      "position_offset_y": 0.000226551056287232,
+      "velocity_scale": 1.0476243705707704,
+      "friction_scale": 0.9161672047791205,
+      "tracking_delay_ms": 12.147116639900592
+    },
+    {
+      "position_offset_x": 0.006100058474907603,
+      "position_offset_y": 0.0061588157947298754,
+      "velocity_scale": 1.001532556104214,
+      "friction_scale": 0.9571602760176283,
+      "tracking_delay_ms": 1.0786140476331285
+    },
+    {
+      "position_offset_x": 0.0007632870294388642,
+      "position_offset_y": -0.0031345826037332313,
+      "velocity_scale": 0.9869067239795378,
+      "friction_scale": 0.9748993531175765,
+      "tracking_delay_ms": 19.74889980372933
+    },
+    {
+      "position_offset_x": 0.002501909332093339,
+      "position_offset_y": 0.007944276019391511,
+      "velocity_scale": 1.0275685690245193,
+      "friction_scale": 0.9450414379981185,
+      "tracking_delay_ms": 6.003325698224509
+    }
+  ],
+  "summary": {
+    "successful_catches": 0,
+    "partial_contacts": 1,
+    "missed_catches": 7,
+    "catch_rate": 0.0,
+    "contact_rate": 0.125
+  }
+}

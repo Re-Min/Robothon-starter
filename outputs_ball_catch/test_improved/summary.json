@@ -1,0 +1,852 @@
+{
+  "project": "Ball Catch",
+  "seed": 42,
+  "difficulty": "easy",
+  "total_steps": 2379,
+  "total_time_s": 23.83,
+  "ball_launched": true,
+  "first_contact_time_s": 23.72000000000091,
+  "catch_success": false,
+  "active_fingers_max": 1,
+  "tracking_stats": {
+    "launch_time": 16.999999999999858,
+    "first_contact_time": null,
+    "catch_time": null,
+    "mean_tracking_error_m": 0.0426,
+    "max_tracking_error_m": 0.22166,
+    "tracking_samples": 679
+  },
+  "phases": [
+    "HAND_RESET",
+    "HAND_DISPLAY_1",
+    "HAND_DISPLAY_2",
+    "HAND_DISPLAY_3",
+    "HAND_DISPLAY_4",
+    "CATCH_POSITION",
+    "BALL_AWAIT",
+    "BALL_LAUNCH",
+    "HAND_CLOSE",
+    "CATCH_HOLD",
+    "CATCH_RELEASE",
+    "FINAL_REPORT"
+  ],
+  "trajectory_length": 2379,
+  "force_history": [
+    {
+      "time": 17.00999999999986,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 17.109999999999875,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 17.20999999999989,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 17.309999999999906,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 17.409999999999922,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 17.509999999999938,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 17.609999999999953,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 17.70999999999997,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 17.809999999999985,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 17.91,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 18.010000000000016,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 18.11000000000003,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 18.210000000000047,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 18.310000000000063,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 18.41000000000008,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 18.510000000000094,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 18.61000000000011,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 18.710000000000125,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 18.81000000000014,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 18.910000000000156,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 19.010000000000172,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 19.110000000000188,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 19.210000000000203,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 19.31000000000022,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 19.410000000000235,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 19.51000000000025,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 19.610000000000266,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 19.71000000000028,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 19.810000000000297,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 19.910000000000313,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 20.01000000000033,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 20.110000000000344,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 20.21000000000036,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 20.310000000000375,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 20.41000000000039,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 20.510000000000407,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 20.610000000000422,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 20.710000000000438,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 20.810000000000453,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 20.91000000000047,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 21.010000000000485,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 21.1100000000005,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 21.210000000000516,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 21.31000000000053,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 21.410000000000547,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 21.510000000000563,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 21.61000000000058,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 21.710000000000594,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 21.81000000000061,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 21.910000000000625,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 22.01000000000064,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 22.110000000000657,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 22.210000000000672,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 22.310000000000688,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 22.410000000000704,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 22.51000000000072,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 22.610000000000735,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 22.71000000000075,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 22.810000000000766,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 22.91000000000078,
+      "phase": "BALL_LAUNCH",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 23.010000000000797,
+      "phase": "HAND_CLOSE",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 23.110000000000813,
+      "phase": "HAND_CLOSE",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 23.21000000000083,
+      "phase": "HAND_CLOSE",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 23.310000000000844,
+      "phase": "HAND_CLOSE",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 23.41000000000086,
+      "phase": "HAND_CLOSE",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 23.510000000000876,
+      "phase": "HAND_CLOSE",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 23.61000000000089,
+      "phase": "HAND_CLOSE",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    },
+    {
+      "time": 23.710000000000907,
+      "phase": "HAND_CLOSE",
+      "forces": {
+        "thumb": 0.0,
+        "index": 0.0,
+        "middle": 0.0,
+        "ring": 0.0,
+        "little": 0.0
+      },
+      "total_force": 0.0
+    }
+  ]
+}
