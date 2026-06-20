@@ -1,0 +1,81 @@
+{
+  "title": "Ball Catch - Response Time Analysis",
+  "analysis_timestamp": "2026",
+  "summary": {
+    "total_trials": 32,
+    "overall_response_time_mean_s": 1.5,
+    "overall_tracking_error_mean_cm": 9.19,
+    "overall_prediction_accuracy_pct": 54.1,
+    "fastest_response_s": 1.5,
+    "slowest_response_s": 1.5
+  },
+  "by_difficulty": {
+    "easy": {
+      "trials": 16,
+      "response_time_min_s": 1.5,
+      "response_time_max_s": 1.5,
+      "response_time_mean_s": 1.5,
+      "tracking_error_mean_cm": 7.42,
+      "tracking_error_max_cm": 98.88,
+      "fingers_used_mean": 2.6,
+      "prediction_accuracy_pct": 62.9
+    },
+    "medium": {
+      "trials": 8,
+      "response_time_min_s": 1.5,
+      "response_time_max_s": 1.5,
+      "response_time_mean_s": 1.5,
+      "tracking_error_mean_cm": 8.06,
+      "tracking_error_max_cm": 14.15,
+      "fingers_used_mean": 2.6,
+      "prediction_accuracy_pct": 59.7
+    },
+    "hard": {
+      "trials": 8,
+      "response_time_min_s": 1.5,
+      "response_time_max_s": 1.5,
+      "response_time_mean_s": 1.5,
+      "tracking_error_mean_cm": 12.09,
+      "tracking_error_max_cm": 21.22,
+      "fingers_used_mean": 3.1,
+      "prediction_accuracy_pct": 39.6
+    }
+  },
+  "timing_phases": {
+    "hand_display": {
+      "duration_s": 2.0,
+      "description": "展示手部灵活性"
+    },
+    "hand_positioning": {
+      "duration_s": 1.5,
+      "description": "移动到接球位置"
+    },
+    "ball_await": {
+      "duration_s": 1.0,
+      "description": "张开手等待发射"
+    },
+    "ball_launch": {
+      "duration_s": 0.3,
+      "description": "触发器激活"
+    },
+    "hand_tracking": {
+      "duration_s": 1.5,
+      "description": "主动追踪球体"
+    },
+    "hand_close": {
+      "duration_s": 0.4,
+      "description": "手指闭合抓取"
+    },
+    "catch_hold": {
+      "duration_s": 1.5,
+      "description": "保持稳定"
+    }
+  },
+  "recommendations": [
+    {
+      "type": "tracking",
+      "status": "excellent",
+      "message": "追踪误差优秀 (<10cm)"
+    }
+  ]
+}

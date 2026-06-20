@@ -1,0 +1,27 @@
+{
+  "project": "Ball Catch",
+  "seed": 42,
+  "difficulty": "easy",
+  "catch_success": false,
+  "total_time_s": 23.83,
+  "first_contact_time_s": 23.72000000000091,
+  "active_fingers_max": 1,
+  "tracking_stats": {
+    "launch_time": 16.999999999999858,
+    "first_contact_time": null,
+    "catch_time": null,
+    "mean_tracking_error_m": 0.0426,
+    "max_tracking_error_m": 0.22166,
+    "tracking_samples": 679
+  },
+  "performance_grade": {
+    "score": 45,
+    "grade": "D",
+    "reasons": [
+      "Catch failed (0)",
+      "Good tracking (4.3cm, +20)",
+      "Fair grasp (1 fingers, +15)",
+      "Normal/slow response (+10)"
+    ]
+  }
+}

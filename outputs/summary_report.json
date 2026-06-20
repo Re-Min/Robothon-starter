@@ -1,0 +1,36 @@
+{
+  "title": "Ball Catch - Comprehensive Test Report",
+  "overview": {
+    "total_trials": 32,
+    "total_successful": 32,
+    "total_failed": 0,
+    "overall_catch_rate": 1.0,
+    "overall_contact_rate": 1.0
+  },
+  "by_difficulty": {
+    "easy": {
+      "trials": 16,
+      "successful": 16,
+      "partial": 0,
+      "missed": 0,
+      "catch_rate": 1.0,
+      "contact_rate": 1.0
+    },
+    "medium": {
+      "trials": 8,
+      "successful": 8,
+      "partial": 0,
+      "missed": 0,
+      "catch_rate": 1.0,
+      "contact_rate": 1.0
+    },
+    "hard": {
+      "trials": 8,
+      "successful": 8,
+      "partial": 0,
+      "missed": 0,
+      "catch_rate": 1.0,
+      "contact_rate": 1.0
+    }
+  }
+}
